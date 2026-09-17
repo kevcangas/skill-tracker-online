@@ -1,0 +1,32 @@
+# Environment variables
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv/
+.pytest_cache/
+
+# Node / React
+node_modules/
+dist/
+.vite/
+npm-debug.log*
+
+# Database & Backups
+*.sql
+*.sql.gz
+postgres_data/
+backups/
+
+# IDE & OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
