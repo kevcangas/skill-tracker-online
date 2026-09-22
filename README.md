@@ -12,6 +12,20 @@ Sistema de gestión, sincronización *offline-first* y visualización analítica
   - **Identificadores Únicos Universales:** Uso estricto de **UUIDv4** generados en el cliente para prevenir colisiones de IDs entre múltiples dispositivos.
   - **Soft Deletes:** Eliminación lógica mediante el atributo `is_deleted = true` para asegurar la propagación bidireccional de bajas.
 
+---
+
+## 📚 Documentación Detallada (Carpeta `doc/`)
+
+La documentación completa y modular del proyecto se encuentra dividida por áreas técnicas en la carpeta [**`doc/`**](file:///c:/Users/kevin/Desktop/proyectos/skill-tracker-online/doc/README.md):
+
+| Documento | Enfoque |
+| :--- | :--- |
+| 🏗️ **[01. Arquitectura y Stack](file:///c:/Users/kevin/Desktop/proyectos/skill-tracker-online/doc/01-arquitectura-sistema.md)** | Visión general del sistema, red interna Docker, puertos, seguridad y Traefik. |
+| 🚀 **[02. Despliegue y Operaciones](file:///c:/Users/kevin/Desktop/proyectos/skill-tracker-online/doc/02-despliegue-y-operaciones.md)** | Configuración `.env`, comandos Docker Compose, migraciones con Alembic y respaldos. |
+| 📡 **[03. Referencia de Endpoints API](file:///c:/Users/kevin/Desktop/proyectos/skill-tracker-online/doc/03-api-endpoints.md)** | Catálogo completo de endpoints REST (`/api/v1/*`) con payloads JSON y códigos HTTP. |
+| 📱 **[04. Guía de Integración App Móvil](file:///c:/Users/kevin/Desktop/proyectos/skill-tracker-online/doc/04-guia-app-movil-android.md)** | Configuración de red Android, permisos, modelos Room en Kotlin, flujo de usuario y sincronización con WorkManager. |
+
+
 - 📊 **Dashboard Web Interactivo de Escritorio (React SPA):**
   - **Matriz de Consistencia (Heatmap):** Cuadrícula visual estilo GitHub de la intensidad de práctica diaria (últimos 60 días).
   - **Métricas Globales:** Horas totales acumuladas, rachas activas (*streaks*), recuento de habilidades y estado del servidor Homelab.
