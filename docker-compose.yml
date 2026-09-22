@@ -23,6 +23,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    image: ${REGISTRY_URL:-localhost:5000}/skill_tracker_backend:latest
     container_name: skill_tracker_backend
     restart: always
     environment:
@@ -37,8 +38,6 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000,http://localhost:8000}
     ports:
       - "${BACKEND_PORT:-8000}:8000"
-    volumes:
-      - ./backend:/app
     depends_on:
       postgres:
         condition: service_healthy
@@ -49,6 +48,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    image: ${REGISTRY_URL:-localhost:5000}/skill_tracker_frontend:latest
     container_name: skill_tracker_frontend
     restart: always
     ports:
