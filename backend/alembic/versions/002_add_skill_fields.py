@@ -1,6 +1,6 @@
 """Add is_archived to skills and priority, is_completed, due_date to milestones
 
-Revision ID: 002_add_is_archived_and_milestone_fields
+Revision ID: 002_add_skill_fields
 Revises: 001_initial_schema
 Create Date: 2026-09-22 13:40:00.000000
 
@@ -9,14 +9,17 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 
-# revision identifiers, used by Alembic.
-revision: str = '002_add_is_archived_and_milestone_fields'
+# revision identifiers, used by Alembic (max 32 chars in alembic_version)
+revision: str = '002_add_skill_fields'
 down_revision: Union[str, None] = '001_initial_schema'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    # 0. Expand alembic_version.version_num from VARCHAR(32) to VARCHAR(64) to allow longer revision names
+    op.execute("ALTER TABLE alembic_version ALTER COLUMN version_num TYPE VARCHAR(64);")
+
     # 1. Add is_archived column to skills table
     op.add_column(
         'skills',

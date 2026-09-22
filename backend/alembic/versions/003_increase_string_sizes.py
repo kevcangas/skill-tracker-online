@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = '003_increase_string_sizes'
-down_revision: Union[str, None] = '002_add_is_archived_and_milestone_fields'
+down_revision: Union[str, None] = '002_add_skill_fields'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
