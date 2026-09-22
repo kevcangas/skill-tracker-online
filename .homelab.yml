@@ -1,0 +1,17 @@
+app_name: skill_tracker
+port: 3000
+services:
+  - name: frontend
+    container: skill_tracker_frontend
+    port: 3000
+    subdomain: skilltracker
+    homepage: true
+    icon: mdi-target
+    description: "Skill Tracker Analytics & Desktop Dashboard"
+  - name: backend
+    container: skill_tracker_backend
+    port: 8000
+    subdomain: api-skilltracker
+    homepage: false
+    icon: mdi-api
+    description: "Skill Tracker REST API & Sync Engine"
