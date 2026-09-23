@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Target, Play, Edit3, Trash2, Clock, ListFilter, Award, CheckSquare, Archive, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
+import { Target, Play, Edit3, Trash2, Clock, ListFilter, Award, CheckSquare, Archive, RefreshCw, ChevronDown, ChevronUp, Flame } from 'lucide-react';
+
 
 export default function SkillList({
   skills = [],
@@ -120,6 +121,27 @@ export default function SkillList({
                       <Clock size={13} />
                       <span>{skill.practiced_hours} hrs</span>
                     </div>
+
+                    {skill.current_streak > 0 && (
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '3px',
+                          fontSize: '12px',
+                          color: '#F59E0B',
+                          background: 'rgba(245, 158, 11, 0.12)',
+                          padding: '4px 8px',
+                          borderRadius: '8px',
+                          fontWeight: 700
+                        }}
+                        title={`Racha activa para esta habilidad: ${skill.current_streak} días`}
+                      >
+                        <Flame size={13} />
+                        <span>{skill.current_streak}d</span>
+                      </div>
+                    )}
+
 
                     <button
                       className="btn-primary"

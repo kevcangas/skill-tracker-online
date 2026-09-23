@@ -29,6 +29,11 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
 
 @router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 def register(user_in: UserCreate, db: Session = Depends(get_db)):
+    if len(user_in.password.strip()) < 6:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La contraseña debe tener al menos 6 caracteres."
+        )
     existing = db.query(User).filter(User.email == user_in.email).first()
     if existing:
         raise HTTPException(
@@ -57,6 +62,15 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
     access_token = create_access_token(data={"sub": user.id})
     return {"access_token": access_token, "token_type": "bearer"}
 
+@router.post("/refresh", response_model=Token)
+def refresh_access_token(current_user: User = Depends(get_current_user)):
+    """
+    Refreshes and extends the active user session JWT bearer token to keep the session active.
+    """
+    access_token = create_access_token(data={"sub": current_user.id})
+    return {"access_token": access_token, "token_type": "bearer"}
+
 @router.get("/me", response_model=UserOut)
 def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user
+

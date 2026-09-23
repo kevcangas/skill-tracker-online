@@ -1,42 +1,59 @@
 import React, { useState } from 'react';
-import { LogIn, UserPlus, X, Lock, Mail, User, Sparkles, AlertCircle } from 'lucide-react';
+import { LogIn, UserPlus, X, Lock, Mail, User, Sparkles, AlertCircle, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 
 export default function AuthModal({
   isOpen,
   onClose,
   onLogin,
   onRegister,
-  canClose = true
+  canClose = true,
+  sessionNotice = null
 }) {
   const [mode, setMode] = useState('login'); // 'login' | 'register'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   if (!isOpen) return null;
 
+  const handleClose = () => {
+    setPassword('');
+    setShowPassword(false);
+    setError(null);
+    if (onClose) onClose();
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
+    const emailToSubmit = email.trim();
+    const passToSubmit = password;
+    const nameToSubmit = fullName.trim();
+
+    // Memory hygiene (TSK-04): Wipe password from component state immediately
+    setPassword('');
+
     try {
       if (mode === 'login') {
-        await onLogin(email.trim(), password);
+        await onLogin(emailToSubmit, passToSubmit);
       } else {
-        await onRegister(email.trim(), password, fullName.trim());
+        await onRegister(emailToSubmit, passToSubmit, nameToSubmit);
       }
       setEmail('');
-      setPassword('');
       setFullName('');
+      setShowPassword(false);
     } catch (err) {
       setError(err.message || 'Error en la autenticación. Verifica tus datos.');
     } finally {
       setLoading(false);
     }
   };
+
 
   const handleDemoLogin = async () => {
     setError(null);
@@ -66,13 +83,32 @@ export default function AuthModal({
           </div>
           {canClose && (
             <button
-              onClick={onClose}
+              onClick={handleClose}
               style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+              title="Cerrar"
             >
               <X size={20} />
             </button>
           )}
         </div>
+
+        {sessionNotice && (
+          <div style={{
+            background: 'rgba(245, 158, 11, 0.15)',
+            border: '1px solid rgba(245, 158, 11, 0.35)',
+            color: '#FCD34D',
+            padding: '10px 14px',
+            borderRadius: '8px',
+            fontSize: '13px',
+            marginBottom: '16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <AlertCircle size={16} />
+            <span>{sessionNotice}</span>
+          </div>
+        )}
 
         {/* Mode Selector Tabs */}
         <div style={{ display: 'flex', background: 'rgba(15, 23, 42, 0.6)', borderRadius: '10px', padding: '4px', marginBottom: '20px' }}>
@@ -143,6 +179,7 @@ export default function AuthModal({
                 type="text"
                 className="form-input"
                 placeholder="Ej. Kevin Cangas"
+                autoComplete="name"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
               />
@@ -159,6 +196,7 @@ export default function AuthModal({
               required
               className="form-input"
               placeholder="tu_correo@ejemplo.com"
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
@@ -169,16 +207,39 @@ export default function AuthModal({
               <Lock size={14} />
               <span>Contraseña</span>
             </label>
-            <input
-              type="password"
-              required
-              minLength={6}
-              className="form-input"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                required
+                minLength={6}
+                className="form-input"
+                placeholder="••••••••"
+                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                style={{ width: '100%', paddingRight: '40px' }}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(prev => !prev)}
+                style={{
+                  position: 'absolute',
+                  right: '10px',
+                  background: 'none',
+                  border: 'none',
+                  color: '#94A3B8',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  display: 'flex',
+                  alignItems: 'center'
+                }}
+                title={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </div>
+
 
           <button
             type="submit"

@@ -21,6 +21,8 @@ export default function App() {
   const [stats, setStats] = useState({
     total_hours: 0,
     total_skills: 0,
+    current_streak: 0,
+    longest_streak: 0,
     heatmap: [],
     categories: [],
     skills: [],
@@ -34,7 +36,15 @@ export default function App() {
   const [syncLoading, setSyncLoading] = useState(false);
   const [error, setError] = useState(null);
   const [authToken, setAuthToken] = useState(localStorage.getItem('token') || '');
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem('user');
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+  const [sessionNotice, setSessionNotice] = useState(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   const [activeTab, setActiveTab] = useState('skills'); // 'skills' | 'sessions' | 'milestones' | 'tasks'
@@ -57,6 +67,16 @@ export default function App() {
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
   const [selectedYear, setSelectedYear] = useState(getCurrentYear());
 
+  // Gracefully handle expired or invalid session (TSK-05 & Keep-Alive)
+  const handleSessionExpired = (message = "Tu sesión ha expirado o no es válida. Por favor, inicia sesión de nuevo.") => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setAuthToken('');
+    setCurrentUser(null);
+    setSessionNotice(message);
+    setIsAuthModalOpen(true);
+  };
+
   const fetchCurrentUser = async (token) => {
     try {
       const res = await fetch('/api/v1/auth/me', {
@@ -65,13 +85,41 @@ export default function App() {
       if (res.ok) {
         const user = await res.json();
         setCurrentUser(user);
+        localStorage.setItem('user', JSON.stringify(user));
         return user;
+      } else if (res.status === 401) {
+        handleSessionExpired();
+        return null;
       }
       return null;
     } catch (e) {
       console.error("Error fetching current user:", e);
       return null;
     }
+  };
+
+  // Background token renewal to keep session active seamlessly
+  const refreshSessionToken = async (currentToken = authToken) => {
+    if (!currentToken) return null;
+    try {
+      const res = await fetch('/api/v1/auth/refresh', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${currentToken}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.access_token) {
+          localStorage.setItem('token', data.access_token);
+          setAuthToken(data.access_token);
+          return data.access_token;
+        }
+      } else if (res.status === 401) {
+        handleSessionExpired();
+      }
+    } catch (err) {
+      console.warn("Session refresh background error:", err);
+    }
+    return null;
   };
 
   // Initial authentication & fetch
@@ -82,16 +130,13 @@ export default function App() {
         let token = authToken;
 
         if (token) {
-          const user = await fetchCurrentUser(token);
+          // Attempt silent token refresh to keep session fresh
+          const refreshed = await refreshSessionToken(token);
+          const activeToken = refreshed || token;
+          const user = await fetchCurrentUser(activeToken);
           if (user) {
-            await fetchCategories(token);
-            await fetchDashboardData(token);
-          } else {
-            // Token expired or invalid
-            localStorage.removeItem('token');
-            setAuthToken('');
-            setCurrentUser(null);
-            setIsAuthModalOpen(true);
+            await fetchCategories(activeToken);
+            await fetchDashboardData(activeToken);
           }
         } else {
           // No active token: open authentication modal
@@ -106,6 +151,30 @@ export default function App() {
     }
 
     initAuthAndFetch();
+
+    // Session Keep-Alive Interval: refresh token every 4 hours while app is open
+    const keepAliveInterval = setInterval(() => {
+      const currentTok = localStorage.getItem('token');
+      if (currentTok) {
+        refreshSessionToken(currentTok);
+      }
+    }, 4 * 60 * 60 * 1000);
+
+    // Refresh when user returns to window tab
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        const currentTok = localStorage.getItem('token');
+        if (currentTok) {
+          refreshSessionToken(currentTok);
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(keepAliveInterval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   const handleLogin = async (email, password) => {
@@ -122,8 +191,13 @@ export default function App() {
     const token = data.access_token;
     localStorage.setItem('token', token);
     setAuthToken(token);
+    setSessionNotice(null);
 
     const user = await fetchCurrentUser(token);
+    if (user) {
+      localStorage.setItem('user', JSON.stringify(user));
+      setCurrentUser(user);
+    }
     await fetchCategories(token);
     await fetchDashboardData(token);
     setIsAuthModalOpen(false);
@@ -149,12 +223,16 @@ export default function App() {
 
   const handleLogout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
     setAuthToken('');
     setCurrentUser(null);
+    setSessionNotice(null);
     setCategoriesList([]);
     setStats({
       total_hours: 0,
       total_skills: 0,
+      current_streak: 0,
+      longest_streak: 0,
       heatmap: [],
       categories: [],
       skills: [],
@@ -166,10 +244,15 @@ export default function App() {
   };
 
   const fetchCategories = async (token = authToken) => {
+    if (!token) return;
     try {
       const res = await fetch('/api/v1/categories', {
         headers: { Authorization: `Bearer ${token}` }
       });
+      if (res.status === 401) {
+        handleSessionExpired();
+        return;
+      }
       if (res.ok) {
         const data = await res.json();
         setCategoriesList(data);
@@ -180,10 +263,16 @@ export default function App() {
   };
 
   const fetchDashboardData = async (token = authToken) => {
+    if (!token) return;
     try {
-      const res = await fetch('/api/v1/stats/dashboard', {
+      const tzOffset = new Date().getTimezoneOffset();
+      const res = await fetch(`/api/v1/stats/dashboard?tz_offset_minutes=${tzOffset}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      if (res.status === 401) {
+        handleSessionExpired();
+        return;
+      }
       if (res.ok) {
         const data = await res.json();
         setStats(data);
@@ -200,6 +289,10 @@ export default function App() {
       const res = await fetch('/api/v1/sync/pull', {
         headers: { Authorization: `Bearer ${authToken}` }
       });
+      if (res.status === 401) {
+        handleSessionExpired();
+        return;
+      }
       if (res.ok) {
         await fetchCategories();
         await fetchDashboardData();
@@ -500,7 +593,8 @@ export default function App() {
             totalHours={filteredTotalHours}
             totalSkills={stats.skills.filter(s => !s.is_archived).length}
             categoryCount={stats.categories.length}
-            streakDays={14}
+            streakDays={stats.current_streak ?? 0}
+            longestStreak={stats.longest_streak ?? 0}
           />
 
           {/* Navigation Tabs */}
@@ -750,6 +844,7 @@ export default function App() {
         onLogin={handleLogin}
         onRegister={handleRegister}
         canClose={!!currentUser}
+        sessionNotice={sessionNotice}
       />
     </div>
   );

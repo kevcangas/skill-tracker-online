@@ -1,7 +1,7 @@
 import React from 'react';
 import { Clock, Award, Flame, Target } from 'lucide-react';
 
-export default function StatsCards({ totalHours, totalSkills, categoryCount, streakDays = 7 }) {
+export default function StatsCards({ totalHours, totalSkills, categoryCount, streakDays = 0, longestStreak = 0 }) {
   return (
     <div className="stats-grid">
       <div className="glass-card">
@@ -33,13 +33,13 @@ export default function StatsCards({ totalHours, totalSkills, categoryCount, str
       <div className="glass-card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
           <span style={{ fontSize: '13px', color: '#94A3B8', fontWeight: 600 }}>CURRENT STREAK</span>
-          <Flame size={20} color="#F59E0B" />
+          <Flame size={20} color={streakDays > 0 ? '#F59E0B' : '#6B7280'} />
         </div>
         <div style={{ fontSize: '32px', fontWeight: 800, color: '#F8FAFC' }}>
-          {streakDays} <span style={{ fontSize: '16px', color: '#94A3B8', fontWeight: 500 }}>days</span>
+          {streakDays} <span style={{ fontSize: '16px', color: '#94A3B8', fontWeight: 500 }}>{streakDays === 1 ? 'día' : 'días'}</span>
         </div>
-        <div style={{ fontSize: '12px', color: '#F59E0B', marginTop: '4px' }}>
-          🔥 Consistent growth streak
+        <div style={{ fontSize: '12px', color: streakDays > 0 ? '#F59E0B' : '#94A3B8', marginTop: '4px' }}>
+          {streakDays > 0 ? `🔥 Racha activa (Récord: ${longestStreak || streakDays}d)` : '⚡ Practica hoy para iniciar racha'}
         </div>
       </div>
 

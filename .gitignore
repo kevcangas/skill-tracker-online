@@ -30,3 +30,4 @@ backups/
 Thumbs.db
 .vscode/
 .idea/
+.spec/
