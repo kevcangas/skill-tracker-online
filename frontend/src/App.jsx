@@ -13,6 +13,7 @@ import DataBackupModal from './components/DataBackupModal';
 import FilterBar from './components/FilterBar';
 import CustomFilterModal from './components/CustomFilterModal';
 import SkillSessionsChart from './components/SkillSessionsChart';
+import AuthModal from './components/AuthModal';
 import { getTodayString, getCurrentYear, getCurrentMonth, isSessionInTimeFilter } from './utils/dateUtils';
 import { RefreshCw, Server, AlertCircle, Target, Clock, Award, CheckSquare } from 'lucide-react';
 
@@ -33,6 +34,8 @@ export default function App() {
   const [syncLoading, setSyncLoading] = useState(false);
   const [error, setError] = useState(null);
   const [authToken, setAuthToken] = useState(localStorage.getItem('token') || '');
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   const [activeTab, setActiveTab] = useState('skills'); // 'skills' | 'sessions' | 'milestones' | 'tasks'
   const [selectedSkillFilter, setSelectedSkillFilter] = useState('');
@@ -54,6 +57,23 @@ export default function App() {
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
   const [selectedYear, setSelectedYear] = useState(getCurrentYear());
 
+  const fetchCurrentUser = async (token) => {
+    try {
+      const res = await fetch('/api/v1/auth/me', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const user = await res.json();
+        setCurrentUser(user);
+        return user;
+      }
+      return null;
+    } catch (e) {
+      console.error("Error fetching current user:", e);
+      return null;
+    }
+  };
+
   // Initial authentication & fetch
   useEffect(() => {
     async function initAuthAndFetch() {
@@ -61,40 +81,22 @@ export default function App() {
         setLoading(true);
         let token = authToken;
 
-        // Auto login or register demo user if not authenticated
-        if (!token) {
-          const loginRes = await fetch('/api/v1/auth/token', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({ username: 'demo@example.com', password: 'password123' })
-          });
-
-          if (loginRes.ok) {
-            const data = await loginRes.json();
-            token = data.access_token;
-            localStorage.setItem('token', token);
-            setAuthToken(token);
+        if (token) {
+          const user = await fetchCurrentUser(token);
+          if (user) {
+            await fetchCategories(token);
+            await fetchDashboardData(token);
           } else {
-            // Register demo user
-            await fetch('/api/v1/auth/register', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ email: 'demo@example.com', password: 'password123', full_name: 'Demo Homelab User' })
-            });
-            const retryRes = await fetch('/api/v1/auth/token', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-              body: new URLSearchParams({ username: 'demo@example.com', password: 'password123' })
-            });
-            const data = await retryRes.json();
-            token = data.access_token;
-            localStorage.setItem('token', token);
-            setAuthToken(token);
+            // Token expired or invalid
+            localStorage.removeItem('token');
+            setAuthToken('');
+            setCurrentUser(null);
+            setIsAuthModalOpen(true);
           }
+        } else {
+          // No active token: open authentication modal
+          setIsAuthModalOpen(true);
         }
-
-        await fetchCategories(token);
-        await fetchDashboardData(token);
       } catch (err) {
         console.error("Dashboard init error:", err);
         setError("Could not connect to FastAPI backend server.");
@@ -105,6 +107,63 @@ export default function App() {
 
     initAuthAndFetch();
   }, []);
+
+  const handleLogin = async (email, password) => {
+    const res = await fetch('/api/v1/auth/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ username: email, password })
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.detail || 'Credenciales incorrectas');
+    }
+    const data = await res.json();
+    const token = data.access_token;
+    localStorage.setItem('token', token);
+    setAuthToken(token);
+
+    const user = await fetchCurrentUser(token);
+    await fetchCategories(token);
+    await fetchDashboardData(token);
+    setIsAuthModalOpen(false);
+  };
+
+  const handleRegister = async (email, password, fullName) => {
+    const res = await fetch('/api/v1/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email,
+        password,
+        full_name: fullName || null
+      })
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.detail || 'Error al registrar la cuenta');
+    }
+    // Auto login immediately
+    await handleLogin(email, password);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    setAuthToken('');
+    setCurrentUser(null);
+    setCategoriesList([]);
+    setStats({
+      total_hours: 0,
+      total_skills: 0,
+      heatmap: [],
+      categories: [],
+      skills: [],
+      logs: [],
+      milestones: [],
+      tasks: []
+    });
+    setIsAuthModalOpen(true);
+  };
 
   const fetchCategories = async (token = authToken) => {
     try {
@@ -404,6 +463,9 @@ export default function App() {
   return (
     <div className={`app-layout ${isDarkMode ? 'dark-mode' : 'light-mode'}`}>
       <Header
+        currentUser={currentUser}
+        onOpenAuth={() => setIsAuthModalOpen(true)}
+        onLogout={handleLogout}
         onOpenLog={() => { setSelectedSkillId(stats.skills[0]?.id || ''); setIsLogModalOpen(true); }}
         onOpenSkill={() => setIsSkillModalOpen(true)}
         onOpenBackup={() => setIsBackupModalOpen(true)}
@@ -680,6 +742,14 @@ export default function App() {
         selectedYear={selectedYear}
         setSelectedYear={setSelectedYear}
         onApply={() => setTimeFilter('custom')}
+      />
+
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onLogin={handleLogin}
+        onRegister={handleRegister}
+        canClose={!!currentUser}
       />
     </div>
   );
