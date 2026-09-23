@@ -1,3 +1,4 @@
+import uuid
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta, timezone, date
 from fastapi import APIRouter, Depends, Query
@@ -12,6 +13,15 @@ from app.models.category import SkillCategory
 from app.models.milestone import Milestone
 
 router = APIRouter(prefix="/stats", tags=["Analytics & Heatmaps"])
+
+DEFAULT_CATEGORIES = [
+    {"name": "Tecnología", "color": "#3B82F6", "icon": "code"},
+    {"name": "Idiomas", "color": "#10B981", "icon": "globe"},
+    {"name": "Arte", "color": "#EC4899", "icon": "palette"},
+    {"name": "Música", "color": "#8B5CF6", "icon": "music"},
+    {"name": "Deportes y Salud", "color": "#F59E0B", "icon": "activity"},
+    {"name": "General", "color": "#6B7280", "icon": "folder"},
+]
 
 def to_local_date_str(dt: datetime, offset_mins: int = 0) -> str:
     """
@@ -146,23 +156,82 @@ def get_dashboard_stats(
         for row in logs_90
     ]
 
-    # Category breakdown
-    cat_breakdown = db.query(
-        SkillCategory.name,
-        SkillCategory.color,
-        func.coalesce(func.sum(ProgressLog.duration_minutes), 0).label("minutes")
-    ).join(Skill, Skill.category_id == SkillCategory.id)\
-     .join(ProgressLog, ProgressLog.skill_id == Skill.id)\
-     .filter(
-         SkillCategory.user_id == user_id,
-         SkillCategory.is_deleted == False,
-         ProgressLog.is_deleted == False
-     ).group_by(SkillCategory.id, SkillCategory.name, SkillCategory.color).all()
+    # Auto-heal: Ensure any skill without category_id is linked to the user's General category
+    unlinked_skills = db.query(Skill).filter(
+        Skill.user_id == user_id,
+        Skill.category_id.is_(None)
+    ).all()
+    if unlinked_skills:
+        general_cat = db.query(SkillCategory).filter(
+            SkillCategory.user_id == user_id,
+            SkillCategory.is_deleted == False,
+            func.lower(SkillCategory.name) == "general"
+        ).first()
+        if not general_cat:
+            general_cat = SkillCategory(
+                id=str(uuid.uuid4()),
+                user_id=user_id,
+                name="General",
+                color="#6B7280",
+                icon="folder",
+                updated_at=datetime.now(timezone.utc),
+                sync_status="SYNCED"
+            )
+            db.add(general_cat)
+            db.flush()
+        for s in unlinked_skills:
+            s.category_id = general_cat.id
+        db.commit()
 
-    category_hours = [
-        {"category": row.name, "color": row.color, "hours": round(row.minutes / 60.0, 1)}
-        for row in cat_breakdown
-    ]
+    # Category breakdown: Left outer join across categories, skills, and logs
+    user_cats = db.query(SkillCategory).filter(
+        SkillCategory.user_id == user_id,
+        SkillCategory.is_deleted == False
+    ).order_by(SkillCategory.name).all()
+
+    # If user has no categories yet, ensure default categories exist
+    if not user_cats:
+        now_dt = datetime.now(timezone.utc)
+        for d in DEFAULT_CATEGORIES:
+            c = SkillCategory(
+                id=str(uuid.uuid4()),
+                user_id=user_id,
+                name=d["name"],
+                color=d["color"],
+                icon=d["icon"],
+                updated_at=now_dt,
+                sync_status="SYNCED"
+            )
+            db.add(c)
+        db.commit()
+        user_cats = db.query(SkillCategory).filter(
+            SkillCategory.user_id == user_id,
+            SkillCategory.is_deleted == False
+        ).order_by(SkillCategory.name).all()
+
+    # Map skill -> category_id
+    all_user_skills = db.query(Skill).filter(Skill.user_id == user_id, Skill.is_deleted == False).all()
+    cat_by_skill_id = {s.id: s.category_id for s in all_user_skills}
+
+    # Tally minutes per category from all active logs
+    cat_minutes: Dict[str, int] = {}
+    for lg in raw_logs:
+        c_id = cat_by_skill_id.get(lg.skill_id)
+        if c_id:
+            cat_minutes[c_id] = cat_minutes.get(c_id, 0) + lg.duration_minutes
+
+    category_hours = []
+    for c in user_cats:
+        c_mins = cat_minutes.get(c.id, 0)
+        category_hours.append({
+            "id": c.id,
+            "category": c.name,
+            "color": c.color,
+            "hours": round(c_mins / 60.0, 1)
+        })
+
+    # Sort categories: highest hours first, then alphabetical
+    category_hours.sort(key=lambda x: (-x["hours"], x["category"]))
 
     # Skills detail with hours, archive status, and per-skill streak
     skills_list = db.query(Skill).filter(Skill.user_id == user_id, Skill.is_deleted == False).all()

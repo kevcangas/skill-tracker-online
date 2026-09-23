@@ -23,66 +23,67 @@ export default function Header({
         </span>
       </div>
 
-      <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-        <button className="btn-secondary" onClick={onToggleTheme} title="Cambiar Tema (Claro / Oscuro)">
-          {isDarkMode ? <Sun size={16} color="#FDE047" /> : <Moon size={16} color="#A78BFA" />}
-        </button>
+      <div className="header-actions">
+        {/* System Utilities */}
+        <div className="header-group">
+          <button
+            className="btn-icon"
+            onClick={onToggleTheme}
+            title={isDarkMode ? "Cambiar a Tema Claro" : "Cambiar a Tema Oscuro"}
+          >
+            {isDarkMode ? <Sun size={17} color="#FDE047" /> : <Moon size={17} color="#A78BFA" />}
+          </button>
 
-        <button className="btn-secondary" onClick={onOpenBackup} title="Respaldo JSON">
-          <FileJson size={16} color="#60A5FA" />
-          <span>Respaldo</span>
-        </button>
+          <button className="btn-secondary" onClick={onOpenBackup} title="Respaldo y Restauración JSON">
+            <FileJson size={16} color="#60A5FA" />
+            <span>Respaldo</span>
+          </button>
 
-        <button className="btn-secondary" onClick={onSync} disabled={syncLoading} title="Sincronizar Datos">
-          <RefreshCw size={16} className={syncLoading ? 'animate-spin' : ''} />
-          <span>{syncLoading ? 'Sincronizando...' : 'Sincronizar'}</span>
-        </button>
+          <button
+            className="btn-secondary"
+            onClick={onSync}
+            disabled={syncLoading}
+            title="Sincronizar Datos con el Servidor"
+          >
+            <RefreshCw size={15} className={syncLoading ? 'animate-spin' : ''} />
+            <span>{syncLoading ? 'Sincronizando...' : 'Sincronizar'}</span>
+          </button>
+        </div>
 
-        <button className="btn-secondary" onClick={onOpenSkill}>
-          <Plus size={16} />
-          <span>Nueva Habilidad</span>
-        </button>
+        <div className="header-divider" />
 
-        <button className="btn-primary" onClick={onOpenLog}>
-          <Layers size={16} />
-          <span>+ Registrar Práctica</span>
-        </button>
+        {/* Primary Creation Actions */}
+        <div className="header-group">
+          <button className="btn-secondary" onClick={onOpenSkill} title="Crear Nueva Habilidad">
+            <Plus size={16} />
+            <span>Nueva Habilidad</span>
+          </button>
+
+          <button className="btn-primary" onClick={onOpenLog} title="Registrar Sesión de Práctica">
+            <Layers size={16} />
+            <span>+ Registrar Práctica</span>
+          </button>
+        </div>
+
+        <div className="header-divider" />
 
         {/* User Session Info & Actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '6px', borderLeft: '1px solid var(--bg-card-border)', paddingLeft: '12px' }}>
+        <div className="header-group">
           {currentUser ? (
             <>
-              <div
-                title={`Usuario activo: ${currentUser.email}`}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  background: 'rgba(59, 130, 246, 0.1)',
-                  border: '1px solid rgba(59, 130, 246, 0.25)',
-                  padding: '5px 10px',
-                  borderRadius: '10px',
-                  fontSize: '12px',
-                  color: '#93C5FD',
-                  maxWidth: '180px',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                <User size={13} color="#60A5FA" />
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <div className="user-badge" title={`Usuario activo: ${currentUser.email}`}>
+                <User size={14} color="#60A5FA" />
+                <span className="user-name">
                   {currentUser.full_name || currentUser.email}
                 </span>
               </div>
 
               <button
-                className="btn-secondary"
+                className="btn-icon btn-icon-danger"
                 onClick={onLogout}
                 title="Cerrar Sesión"
-                style={{ padding: '7px 10px', color: '#F87171' }}
               >
-                <LogOut size={15} />
+                <LogOut size={16} />
               </button>
             </>
           ) : (

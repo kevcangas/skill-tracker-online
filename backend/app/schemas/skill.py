@@ -1,6 +1,6 @@
-from typing import Optional, List
+from typing import Optional, List, Any
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 class CategoryBase(BaseModel):
     id: str
@@ -18,6 +18,8 @@ class CategoryCreate(BaseModel):
 class SkillBase(BaseModel):
     id: str
     category_id: Optional[str] = None
+    category: Optional[str] = None
+    category_name: Optional[str] = None
     name: str
     description: Optional[str] = None
     is_archived: bool = False
@@ -26,9 +28,39 @@ class SkillBase(BaseModel):
     updated_at: datetime
     is_deleted: bool = False
 
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_category(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            cat = data.get("category") or data.get("category_name")
+            if cat and isinstance(cat, str):
+                data.setdefault("category", cat)
+                data.setdefault("category_name", cat)
+            return data
+
+        # Extract from ORM model safely without relationship type mismatch
+        cat_rel = getattr(data, "category", None)
+        cat_name = cat_rel.name if (cat_rel and hasattr(cat_rel, "name")) else None
+
+        return {
+            "id": getattr(data, "id", None),
+            "category_id": getattr(data, "category_id", None),
+            "category": cat_name,
+            "category_name": cat_name,
+            "name": getattr(data, "name", None),
+            "description": getattr(data, "description", None),
+            "is_archived": getattr(data, "is_archived", False) or False,
+            "target_hours": getattr(data, "target_hours", 100.0) or 100.0,
+            "current_level": getattr(data, "current_level", "Beginner") or "Beginner",
+            "updated_at": getattr(data, "updated_at", None),
+            "is_deleted": getattr(data, "is_deleted", False) or False,
+        }
+
 class SkillCreate(BaseModel):
     name: str
     category_id: Optional[str] = None
+    category: Optional[str] = None
+    category_name: Optional[str] = None
     description: Optional[str] = None
     is_archived: Optional[bool] = False
     target_hours: Optional[float] = 100.0
@@ -37,6 +69,8 @@ class SkillCreate(BaseModel):
 class SkillUpdate(BaseModel):
     name: Optional[str] = None
     category_id: Optional[str] = None
+    category: Optional[str] = None
+    category_name: Optional[str] = None
     description: Optional[str] = None
     is_archived: Optional[bool] = None
     target_hours: Optional[float] = None

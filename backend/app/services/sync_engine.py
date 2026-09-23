@@ -1,12 +1,23 @@
+import uuid
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from app.models.category import SkillCategory
 from app.models.skill import Skill
 from app.models.log import ProgressLog
 from app.models.milestone import Milestone
 from app.schemas.sync import SyncPushPayload, SyncPullResponse, SyncResultSummary
 from app.schemas.skill import CategoryBase, SkillBase, LogBase, MilestoneBase
+
+DEFAULT_CATEGORIES = [
+    {"name": "Tecnología", "color": "#3B82F6", "icon": "code"},
+    {"name": "Idiomas", "color": "#10B981", "icon": "globe"},
+    {"name": "Arte", "color": "#EC4899", "icon": "palette"},
+    {"name": "Música", "color": "#8B5CF6", "icon": "music"},
+    {"name": "Deportes y Salud", "color": "#F59E0B", "icon": "activity"},
+    {"name": "General", "color": "#6B7280", "icon": "folder"},
+]
 
 def ensure_utc(dt: datetime) -> datetime:
     if dt.tzinfo is None:
@@ -17,6 +28,72 @@ class SyncEngine:
     def __init__(self, db: Session, user_id: str):
         self.db = db
         self.user_id = user_id
+
+    def resolve_or_create_category(self, category_id: Optional[str] = None, category_name: Optional[str] = None) -> Optional[str]:
+        """
+        Resolves a category ID for a skill:
+        1. Checks if category_id exists and belongs to user.
+        2. If not, matches category_name case-insensitively with user's categories.
+        3. If not found, creates the category on-the-fly.
+        4. If neither provided, falls back to the user's 'General' category.
+        """
+        if category_id:
+            existing = self.db.query(SkillCategory).filter(
+                SkillCategory.id == category_id,
+                SkillCategory.user_id == self.user_id
+            ).first()
+            if existing:
+                return existing.id
+
+        cat_name = (category_name or "").strip()
+        if cat_name:
+            by_name = self.db.query(SkillCategory).filter(
+                SkillCategory.user_id == self.user_id,
+                SkillCategory.is_deleted == False,
+                func.lower(SkillCategory.name) == cat_name.lower()
+            ).first()
+            if by_name:
+                return by_name.id
+
+            # Create matching category
+            default_match = next((d for d in DEFAULT_CATEGORIES if d["name"].lower() == cat_name.lower()), None)
+            color = default_match["color"] if default_match else "#3B82F6"
+            icon = default_match["icon"] if default_match else "folder"
+
+            new_cat = SkillCategory(
+                id=str(uuid.uuid4()),
+                user_id=self.user_id,
+                name=cat_name,
+                color=color,
+                icon=icon,
+                updated_at=datetime.now(timezone.utc),
+                sync_status="SYNCED"
+            )
+            self.db.add(new_cat)
+            self.db.flush()
+            return new_cat.id
+
+        # Fallback to user's 'General' category
+        general_cat = self.db.query(SkillCategory).filter(
+            SkillCategory.user_id == self.user_id,
+            SkillCategory.is_deleted == False,
+            func.lower(SkillCategory.name) == "general"
+        ).first()
+        if general_cat:
+            return general_cat.id
+
+        new_general = SkillCategory(
+            id=str(uuid.uuid4()),
+            user_id=self.user_id,
+            name="General",
+            color="#6B7280",
+            icon="folder",
+            updated_at=datetime.now(timezone.utc),
+            sync_status="SYNCED"
+        )
+        self.db.add(new_general)
+        self.db.flush()
+        return new_general.id
 
     def process_push(self, payload: SyncPushPayload) -> SyncResultSummary:
         server_now = datetime.now(timezone.utc)
@@ -61,6 +138,9 @@ class SyncEngine:
         skills_count = 0
         for sk in payload.skills:
             client_updated = ensure_utc(sk.updated_at)
+            cat_name = getattr(sk, "category", None) or getattr(sk, "category_name", None)
+            resolved_category_id = self.resolve_or_create_category(sk.category_id, cat_name)
+
             existing = self.db.query(Skill).filter(
                 Skill.id == sk.id,
                 Skill.user_id == self.user_id
@@ -70,7 +150,7 @@ class SyncEngine:
                 new_sk = Skill(
                     id=sk.id,
                     user_id=self.user_id,
-                    category_id=sk.category_id,
+                    category_id=resolved_category_id,
                     name=sk.name,
                     description=sk.description,
                     is_archived=getattr(sk, "is_archived", False) or False,
@@ -85,7 +165,7 @@ class SyncEngine:
             else:
                 existing_updated = ensure_utc(existing.updated_at)
                 if client_updated > existing_updated:
-                    existing.category_id = sk.category_id
+                    existing.category_id = resolved_category_id
                     existing.name = sk.name
                     existing.description = sk.description
                     existing.is_archived = getattr(sk, "is_archived", False) or False

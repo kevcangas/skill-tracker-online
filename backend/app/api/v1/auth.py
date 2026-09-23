@@ -1,12 +1,24 @@
+import uuid
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import get_password_hash, verify_password, create_access_token, decode_access_token
 from app.models.user import User
+from app.models.category import SkillCategory
 from app.schemas.auth import UserCreate, UserOut, Token
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+
+DEFAULT_CATEGORIES = [
+    {"name": "Tecnología", "color": "#3B82F6", "icon": "code"},
+    {"name": "Idiomas", "color": "#10B981", "icon": "globe"},
+    {"name": "Arte", "color": "#EC4899", "icon": "palette"},
+    {"name": "Música", "color": "#8B5CF6", "icon": "music"},
+    {"name": "Deportes y Salud", "color": "#F59E0B", "icon": "activity"},
+    {"name": "General", "color": "#6B7280", "icon": "folder"},
+]
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
 
@@ -48,6 +60,22 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
     db.add(user)
     db.commit()
     db.refresh(user)
+
+    # Seed default categories for newly registered user
+    now = datetime.now(timezone.utc)
+    for d in DEFAULT_CATEGORIES:
+        cat = SkillCategory(
+            id=str(uuid.uuid4()),
+            user_id=user.id,
+            name=d["name"],
+            color=d["color"],
+            icon=d["icon"],
+            updated_at=now,
+            sync_status="SYNCED"
+        )
+        db.add(cat)
+    db.commit()
+
     return user
 
 @router.post("/token", response_model=Token)
