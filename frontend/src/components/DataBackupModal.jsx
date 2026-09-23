@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Download, Upload, ShieldCheck, FileJson } from 'lucide-react';
+import { apiUrl } from '../config/api';
 
 export default function DataBackupModal({ isOpen, onClose, stats, authToken, onImportSuccess }) {
   const [importing, setImporting] = useState(false);
@@ -88,7 +89,7 @@ export default function DataBackupModal({ isOpen, onClose, stats, authToken, onI
         }))
       };
 
-      const res = await fetch('/api/v1/sync/push', {
+      const res = await fetch(apiUrl('/api/v1/sync/push'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

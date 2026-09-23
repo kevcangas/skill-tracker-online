@@ -13,7 +13,11 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 43200  # 30 days default for mobile sync
 
-    CORS_ORIGINS: Union[str, List[str]] = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:8000"
+    CORS_ORIGINS: Union[str, List[str]] = (
+        "http://localhost:3000,http://127.0.0.1:3000,http://localhost:8000,"
+        "http://skilltracker.homelab.internal,https://skilltracker.homelab.internal,"
+        "http://api-skilltracker.homelab.internal,https://api-skilltracker.homelab.internal"
+    )
 
     @property
     def cors_origins_list(self) -> List[str]:

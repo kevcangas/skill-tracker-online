@@ -35,7 +35,7 @@ services:
       SECRET_KEY: ${SECRET_KEY:-super_secret_jwt_key_change_in_production_32bytes_min}
       ALGORITHM: ${ALGORITHM:-HS256}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-43200}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000,http://localhost:8000}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000,http://localhost:8000,https://skilltracker.homelab.internal,http://skilltracker.homelab.internal,https://api-skilltracker.homelab.internal,http://api-skilltracker.homelab.internal}
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     depends_on:
@@ -48,9 +48,13 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-https://api-skilltracker.homelab.internal}
     image: ${REGISTRY_URL:-localhost:5000}/skill_tracker_frontend:latest
     container_name: skill_tracker_frontend
     restart: always
+    environment:
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-https://api-skilltracker.homelab.internal}
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     depends_on:

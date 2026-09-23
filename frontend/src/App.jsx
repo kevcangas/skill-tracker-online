@@ -16,6 +16,7 @@ import SkillSessionsChart from './components/SkillSessionsChart';
 import AuthModal from './components/AuthModal';
 import { getTodayString, getCurrentYear, getCurrentMonth, isSessionInTimeFilter } from './utils/dateUtils';
 import { RefreshCw, Server, AlertCircle, Target, Clock, Award, CheckSquare } from 'lucide-react';
+import { apiUrl } from './config/api';
 
 export default function App() {
   const [stats, setStats] = useState({
@@ -79,7 +80,7 @@ export default function App() {
 
   const fetchCurrentUser = async (token) => {
     try {
-      const res = await fetch('/api/v1/auth/me', {
+      const res = await fetch(apiUrl('/api/v1/auth/me'), {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
@@ -102,7 +103,7 @@ export default function App() {
   const refreshSessionToken = async (currentToken = authToken) => {
     if (!currentToken) return null;
     try {
-      const res = await fetch('/api/v1/auth/refresh', {
+      const res = await fetch(apiUrl('/api/v1/auth/refresh'), {
         method: 'POST',
         headers: { Authorization: `Bearer ${currentToken}` }
       });
@@ -178,7 +179,7 @@ export default function App() {
   }, []);
 
   const handleLogin = async (email, password) => {
-    const res = await fetch('/api/v1/auth/token', {
+    const res = await fetch(apiUrl('/api/v1/auth/token'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({ username: email, password })
@@ -204,7 +205,7 @@ export default function App() {
   };
 
   const handleRegister = async (email, password, fullName) => {
-    const res = await fetch('/api/v1/auth/register', {
+    const res = await fetch(apiUrl('/api/v1/auth/register'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -246,7 +247,7 @@ export default function App() {
   const fetchCategories = async (token = authToken) => {
     if (!token) return;
     try {
-      const res = await fetch('/api/v1/categories', {
+      const res = await fetch(apiUrl('/api/v1/categories'), {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.status === 401) {
@@ -266,7 +267,7 @@ export default function App() {
     if (!token) return;
     try {
       const tzOffset = new Date().getTimezoneOffset();
-      const res = await fetch(`/api/v1/stats/dashboard?tz_offset_minutes=${tzOffset}`, {
+      const res = await fetch(apiUrl(`/api/v1/stats/dashboard?tz_offset_minutes=${tzOffset}`), {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.status === 401) {
@@ -286,7 +287,7 @@ export default function App() {
   const handleSync = async () => {
     setSyncLoading(true);
     try {
-      const res = await fetch('/api/v1/sync/pull', {
+      const res = await fetch(apiUrl('/api/v1/sync/pull'), {
         headers: { Authorization: `Bearer ${authToken}` }
       });
       if (res.status === 401) {
@@ -306,7 +307,7 @@ export default function App() {
 
   const handleCreateCategory = async (catData) => {
     try {
-      const res = await fetch('/api/v1/categories', {
+      const res = await fetch(apiUrl('/api/v1/categories'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -327,7 +328,7 @@ export default function App() {
 
   const handleCreateLog = async (logData) => {
     try {
-      const res = await fetch('/api/v1/logs', {
+      const res = await fetch(apiUrl('/api/v1/logs'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -345,7 +346,7 @@ export default function App() {
 
   const handleUpdateLog = async (logId, logData) => {
     try {
-      const res = await fetch(`/api/v1/logs/${logId}`, {
+      const res = await fetch(apiUrl(`/api/v1/logs/${logId}`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -363,7 +364,7 @@ export default function App() {
 
   const handleDeleteLog = async (logId) => {
     try {
-      const res = await fetch(`/api/v1/logs/${logId}`, {
+      const res = await fetch(apiUrl(`/api/v1/logs/${logId}`), {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${authToken}`
@@ -379,7 +380,7 @@ export default function App() {
 
   const handleCreateSkill = async (skillData) => {
     try {
-      const res = await fetch('/api/v1/skills', {
+      const res = await fetch(apiUrl('/api/v1/skills'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -397,7 +398,7 @@ export default function App() {
 
   const handleUpdateSkill = async (skillId, skillData) => {
     try {
-      const res = await fetch(`/api/v1/skills/${skillId}`, {
+      const res = await fetch(apiUrl(`/api/v1/skills/${skillId}`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -419,7 +420,7 @@ export default function App() {
 
   const handleDeleteSkill = async (skillId) => {
     try {
-      const res = await fetch(`/api/v1/skills/${skillId}`, {
+      const res = await fetch(apiUrl(`/api/v1/skills/${skillId}`), {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${authToken}`
@@ -435,7 +436,7 @@ export default function App() {
 
   const handleCreateMilestone = async (msData) => {
     try {
-      const res = await fetch('/api/v1/milestones', {
+      const res = await fetch(apiUrl('/api/v1/milestones'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -453,7 +454,7 @@ export default function App() {
 
   const handleUpdateMilestone = async (msId, msData) => {
     try {
-      const res = await fetch(`/api/v1/milestones/${msId}`, {
+      const res = await fetch(apiUrl(`/api/v1/milestones/${msId}`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -471,7 +472,7 @@ export default function App() {
 
   const handleDeleteMilestone = async (msId) => {
     try {
-      const res = await fetch(`/api/v1/milestones/${msId}`, {
+      const res = await fetch(apiUrl(`/api/v1/milestones/${msId}`), {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${authToken}`
@@ -487,7 +488,7 @@ export default function App() {
 
   const handleToggleTaskComplete = async (taskId, isCompleted) => {
     try {
-      const res = await fetch(`/api/v1/milestones/${taskId}`, {
+      const res = await fetch(apiUrl(`/api/v1/milestones/${taskId}`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

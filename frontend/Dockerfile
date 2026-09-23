@@ -6,6 +6,9 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm install
 
+ARG VITE_API_BASE_URL
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+
 COPY . .
 RUN npm run build
 
@@ -31,4 +34,5 @@ RUN echo 'server { \
 
 EXPOSE 3000
 
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["/bin/sh", "-c", "echo \"window.__ENV__ = { VITE_API_BASE_URL: '${VITE_API_BASE_URL}' };\" > /usr/share/nginx/html/env-config.js && nginx -g 'daemon off;'"]
+
